@@ -107,13 +107,20 @@ def _sync_multiple_accounts(neo4j_session, accounts, sync_tag, common_job_parame
 
     del common_job_parameters["AWS_ID"]
 
-    # There may be orphan Principals which point outside of known AWS accounts. This job cleans
-    # up those nodes after all AWS accounts have been synced.
-    run_cleanup_job('aws_post_ingestion_principals_cleanup.json', neo4j_session, common_job_parameters)
+    # jobs below can only be run if all accounts have been synced
+    # (we cannot decide if we face orphans or resoures for unsynced acccounts)
 
-    # There may be orphan DNS entries that point outside of known AWS zones. This job cleans
-    # up those entries after all AWS accounts have been synced.
-    run_cleanup_job('aws_post_ingestion_dns_cleanup.json', neo4j_session, common_job_parameters)
+    if common_job_parameters['aws_sync_all_profiles']:
+
+        # There may be orphan Principals which point outside of known AWS accounts. This job cleans
+        # up those nodes after all AWS accounts have been synced.
+
+        run_cleanup_job('aws_post_ingestion_principals_cleanup.json', neo4j_session, common_job_parameters)
+
+        # There may be orphan DNS entries that point outside of known AWS zones. This job cleans
+        # up those entries after all AWS accounts have been synced.
+
+        run_cleanup_job('aws_post_ingestion_dns_cleanup.json', neo4j_session, common_job_parameters)
 
 
 @timeit
@@ -121,6 +128,8 @@ def start_aws_ingestion(neo4j_session, config):
     common_job_parameters = {
         "UPDATE_TAG": config.update_tag,
         "permission_relationships_file": config.permission_relationships_file,
+        "aws_keep_unseen_accounts": config.aws_keep_unseen_accounts,
+        "aws_sync_all_profiles": config.aws_sync_all_profiles,
     }
     try:
         boto3_session = boto3.Session()
